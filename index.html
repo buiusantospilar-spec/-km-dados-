@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KM DADOS V7 ULTRA</title>
+  <style>
+    :root {
+      --bg: #0a0c16; --card: #12152a; --border: #252a4a;
+      --player: #3b82f6; --banker: #ef4444; --tie: #f59e0b;
+      --text: #e2e8f0; --muted: #64748b; --green: #22c55e; --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; padding: 15px; }
+    
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .logo { font-weight: 900; font-size: 20px; }
+    .logo span { color: var(--purple); font-size: 12px; margin-left: 5px; }
+    .status { color: var(--green); font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+    .dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; box-shadow: 0 0 5px var(--green); }
+
+    .card { background: var(--card); border: 2px solid var(--border); border-radius: 20px; padding: 25px; text-align: center; margin-bottom: 20px; }
+    .card.player { border-color: var(--player); }
+    .card.banker { border-color: var(--banker); }
+    .card.surf { border-color: var(--purple); background: rgba(168,85,247,0.05); }
+
+    .title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; }
+    .signal { font-size: 36px; font-weight: 900; margin: 15px 0; }
+    .signal.player { color: var(--player); }
+    .signal.banker { color: var(--banker); }
+    .signal.surf { color: var(--purple); }
+    .desc { font-size: 14px; opacity: 0.8; }
+
+    .bead-road { display: grid; grid-template-rows: repeat(6, 32px); grid-auto-flow: column; gap: 5px; overflow-x: auto; background: var(--card); padding: 15px; border-radius: 15px; border: 1px solid var(--border); }
+    .bead { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: #fff; }
+    .bead.P { background: var(--player); }
+    .bead.B { background: var(--banker); }
+    .bead.T { background: var(--tie); color: #000; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">KM DADOS <span>V7 ULTRA PRECISE</span></div>
+  <div class="status"><div class="dot"></div> ONLINE</div>
+</header>
+
+<div id="main-card" class="card">
+  <div class="title">Status da Mesa</div>
+  <div id="signal-text" class="signal">ANALISANDO</div>
+  <div id="signal-desc" class="desc">Monitorando padrões assertivos...</div>
+</div>
+
+<div class="bead-road" id="beads"></div>
+
+<script>
+  let history = [];
+
+  async function update() {
+    try {
+      const res = await fetch('/api/bacbo');
+      const data = await res.json();
+      if (!data || data.length === 0) return;
+      history = data;
+      render();
+      analyze();
+    } catch(e) { console.error(e); }
+  }
+
+  function render() {
+    const container = document.getElementById('beads');
+    container.innerHTML = history.slice(0, 60).map(i => `<div class="bead ${i.result}">${i.result}</div>`).join('');
+  }
+
+  function analyze() {
+    const card = document.getElementById('main-card');
+    const text = document.getElementById('signal-text');
+    const desc = document.getElementById('signal-desc');
+
+    const last = history[0].result;
+    const noTies = history.filter(i => i.result !== 'T').map(i => i.result);
+
+    // 1. SINCRONISMO DE EMPATE
+    if (last === 'T') {
+      card.className = 'card';
+      text.innerText = 'AGUARDAR';
+      text.className = 'signal';
+      desc.innerText = 'Empate detectado. Aguardando saída.';
+      return;
+    }
+
+    const s3 = noTies.slice(0, 3).join('');
+    const s4 = noTies.slice(0, 4).join('');
+
+    // 2. ANTI-SURF (4+)
+    if (s4 === 'PPPP' || s4 === 'BBBB') {
+      card.className = 'card surf';
+      text.innerText = 'AGUARDAR QUEBRA';
+      text.className = 'signal surf';
+      desc.innerText = 'Proteção Anti-Surf ativada.';
+      return;
+    }
+
+    // 3. SNIPER 3X
+    if (s3 === 'PPP' || s3 === 'BBB') {
+      const side = s3 === 'PPP' ? 'BANKER' : 'PLAYER';
+      card.className = 'card ' + side.toLowerCase();
+      text.innerText = 'ENTRAR ' + side;
+      text.className = 'signal ' + side.toLowerCase();
+      desc.innerText = 'Padrão Sniper Identificado.';
+      return;
+    }
+
+    // 4. PADRÃO
+    card.className = 'card';
+    text.innerText = 'ANALISANDO';
+    text.className = 'signal';
+    desc.innerText = 'Monitorando padrões assertivos...';
+  }
+
+  setInterval(update, 3000);
+  update();
+</script>
+
+</body>
+</html>
