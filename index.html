@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Km Dados – Bac Bo Sniper</title>
+  <style>
+    /* Estilos Clássicos que você gosta */
+    :root {
+      --bg: #0a0c16; --card: #12152a; --border: #252a4a;
+      --player: #3b82f6; --banker: #ef4444; --tie: #f59e0b;
+      --text: #e2e8f0; --muted: #64748b; --green: #22c55e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: sans-serif; padding-bottom: 40px; }
+    header { background: #0f1629; border-bottom: 1px solid var(--border); padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+    .logo-text { font-size: 20px; font-weight: 800; color: #fff; }
+    main { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
+    .signal-card { background: var(--card); border: 2px solid var(--border); border-radius: 15px; padding: 30px; text-align: center; margin-bottom: 20px; transition: 0.3s; }
+    .signal-header { font-size: 14px; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
+    .signal-main { font-size: 40px; font-weight: 900; margin: 10px 0; }
+    .signal-sub { font-size: 16px; color: var(--text); opacity: 0.8; }
+    .player { color: var(--player); } .banker { color: var(--banker); } .wait { color: var(--muted); }
+    .bead-grid { display: grid; grid-template-rows: repeat(6, 30px); grid-auto-flow: column; gap: 5px; overflow-x: auto; padding: 15px; background: var(--card); border-radius: 10px; }
+    .bead { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: white; }
+    .bead.P { background: var(--player); } .bead.B { background: var(--banker); } .bead.T { background: var(--tie); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-text">KM DADOS <span style="font-size: 10px; color: var(--muted);">V7 SNIPER</span></div>
+  <div id="status" style="font-size: 12px; color: var(--green);">● Online</div>
+</header>
+
+<main>
+  <div id="signal-card" class="signal-card">
+    <p class="signal-header">Status da Mesa</p>
+    <div id="signal-main" class="signal-main wait">ANALISANDO</div>
+    <p id="signal-sub" class="signal-sub">Aguardando padrão de entrada...</p>
+  </div>
+
+  <div class="bead-grid" id="beads"></div>
+</main>
+
+<script>
+  let lastId = null;
+
+  async function update() {
+    try {
+      const res = await fetch('/api/bacbo');
+      const data = await res.json();
+      if (!data || data.length === 0) return;
+
+      // Sincronismo do Histórico (Bead Road)
+      const container = document.getElementById('beads');
+      container.innerHTML = '';
+      data.slice(0, 60).reverse().forEach(item => {
+        const div = document.createElement('div');
+        div.className = `bead ${item.result}`;
+        div.innerText = item.result;
+        container.appendChild(div);
+      });
+
+      // Lógica de Sinais (Baseada no Guia KTO)
+      analyze(data);
+    } catch (e) { console.error(e); }
+  }
+
+  function analyze(history) {
+    const main = document.getElementById('signal-main');
+    const sub = document.getElementById('signal-sub');
+    const card = document.getElementById('signal-card');
+
+    // Filtra empates para análise de sequência
+    const clean = history.filter(h => h.result !== 'T').map(h => h.result);
+    const last3 = clean.slice(0, 3).join('');
+    const last4 = clean.slice(0, 4).join('');
+
+    // 1. TRAVA ANTI-SURF (4+ iguais)
+    if (last4 === 'PPPP' || last4 === 'BBBB') {
+      main.innerText = 'AGUARDAR QUEBRA';
+      main.className = 'signal-main wait';
+      sub.innerText = 'Sequência longa detectada (Anti-Surf)';
+      card.style.borderColor = '#252a4a';
+      return;
+    }
+
+    // 2. SNIPER 3X (Gatilho real da KTO)
+    if (last3 === 'PPP') {
+      main.innerText = 'ENTRAR BANKER';
+      main.className = 'signal-main banker';
+      sub.innerText = 'Padrão Sniper 3x Identificado';
+      card.style.borderColor = '#ef4444';
+      return;
+    }
+    if (last3 === 'BBB') {
+      main.innerText = 'ENTRAR PLAYER';
+      main.className = 'signal-main player';
+      sub.innerText = 'Padrão Sniper 3x Identificado';
+      card.style.borderColor = '#3b82f6';
+      return;
+    }
+
+    // Se não tiver padrão, fica analisando
+    main.innerText = 'ANALISANDO';
+    main.className = 'signal-main wait';
+    sub.innerText = 'Monitorando padrões assertivos...';
+    card.style.borderColor = '#252a4a';
+  }
+
+  setInterval(update, 3000);
+  update();
+</script>
+</body>
+</html>
