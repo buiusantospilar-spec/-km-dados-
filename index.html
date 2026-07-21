@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Km Dados – Bac Bo V7</title>
+  <style>
+    :root {
+      --bg: #0a0c16;
+      --card: #12152a;
+      --card2: #1a1f38;
+      --border: #252a4a;
+      --player: #3b82f6;
+      --banker: #ef4444;
+      --tie: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --green: #22c55e;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: sans-serif; min-height: 100vh; padding-bottom: 40px; }
+    header { background: #0f1629; border-bottom: 1px solid var(--border); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
+    .logo-text { font-size: 20px; font-weight: 800; color: #fff; }
+    .status-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--green); }
+    
+    main { max-width: 1200px; margin: 20px auto; padding: 0 15px; display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+    .signal-card { background: var(--card); border: 2px solid var(--border); border-radius: 20px; padding: 30px; text-align: center; margin-bottom: 20px; }
+    .signal-card.enter-player { border-color: var(--player); }
+    .signal-card.enter-banker { border-color: var(--banker); }
+    .signal-card.wait { border-color: var(--purple); }
+
+    .signal-header { font-size: 14px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
+    .signal-main { font-size: 42px; font-weight: 900; margin: 10px 0; }
+    .signal-main.player { color: var(--player); }
+    .signal-main.banker { color: var(--banker); }
+    .signal-main.wait { color: var(--purple); }
+
+    .bead-road { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 20px; overflow-x: auto; margin-top: 20px; }
+    .bead-grid { display: grid; grid-template-rows: repeat(6, 32px); grid-auto-flow: column; gap: 6px; }
+    .bead { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: white; }
+    .bead.P { background: var(--player); }
+    .bead.B { background: var(--banker); }
+    .bead.T { background: var(--tie); color: #000; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th { text-align: left; padding: 12px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: 12px; font-size: 14px; border-bottom: 1px solid var(--border); }
+    
+    .stats-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 20px; }
+    .accuracy-card { background: var(--card2); border-radius: 20px; padding: 20px; margin-bottom: 20px; display: flex; justify-content: space-around; text-align: center; }
+    .acc-val { font-size: 24px; font-weight: 800; display: block; }
+    .green { color: var(--green); } .red { color: var(--banker); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-text">KM DADOS V7</div>
+  <div class="status-badge"><div style="width:8px;height:8px;background:var(--green);border-radius:50%"></div> LIVE - CONECTADO</div>
+</header>
+
+<main>
+  <section>
+    <div id="signal-card" class="signal-card">
+      <p class="signal-header">Sinal de Entrada</p>
+      <div id="signal-main" class="signal-main">ANALISANDO</div>
+      <p id="signal-sub" style="color:var(--muted)">Monitorando mesa...</p>
+    </div>
+
+    <div class="accuracy-card">
+      <div><span id="win" class="acc-val green">0</span><span style="font-size:10px">WIN</span></div>
+      <div><span id="loss" class="acc-val red">0</span><span style="font-size:10px">LOSS</span></div>
+    </div>
+
+    <div class="bead-road">
+      <div id="beads" class="bead-grid"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="stats-card">
+      <p style="font-weight:700;margin-bottom:15px">Últimos Resultados</p>
+      <table>
+        <tbody id="history"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+  let lastId = null;
+  let wins = 0; let losses = 0;
+  let currentSignal = null;
+
+  async function update() {
+    try {
+      const r = await fetch('/api/bacbo');
+      const data = await r.json();
+      if(!data || data.length === 0) return;
+
+      const latest = data[0];
+      const outcomes = data.map(i => i.result);
+      
+      // Render History & Beads
+      document.getElementById('history').innerHTML = data.slice(0,10).map(i => `
+        <tr>
+          <td>${i.time}</td>
+          <td><b style="color:var(--${i.result==='P'?'player':i.result==='B'?'banker':'tie'})">${i.result}</b></td>
+          <td>${i.playerScore} x ${i.bankerScore}</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('beads').innerHTML = data.slice(0,60).reverse().map(i => `
+        <div class="bead ${i.result}">${i.result}</div>
+      `).join('');
+
+      // Lógica de Green/Loss
+      if(latest.time !== lastId) {
+        if(currentSignal && latest.result !== 'T') {
+          if(latest.result === currentSignal) wins++; else losses++;
+          document.getElementById('win').innerText = wins;
+          document.getElementById('loss').innerText = losses;
+          currentSignal = null;
+        }
+        lastId = latest.time;
+      }
+
+      // Analisar Padrões (Sniper V7)
+      analyze(outcomes);
+    } catch(e) { console.error(e); }
+  }
+
+  function analyze(outcomes) {
+    const clean = outcomes.filter(o => o !== 'T');
+    const lastResult = outcomes[0];
+
+    // Trava de Empate
+    if(lastResult === 'T') {
+      setSignal('wait', 'AGUARDAR', 'Empate detectado. Aguardando saída.');
+      return;
+    }
+
+    const last3 = clean.slice(0,3).join('');
+    const last4 = clean.slice(0,4).join('');
+
+    // Anti-Surf (Proteção)
+    if(last4 === 'PPPP' || last4 === 'BBBB') {
+      setSignal('wait', 'SURF DETECTADO', 'Aguarde a quebra da sequência.');
+      return;
+    }
+
+    // Sniper 3x
+    if(last3 === 'PPP' || last3 === 'BBB') {
+      const target = last3 === 'PPP' ? 'B' : 'P';
+      setSignal(target === 'P' ? 'enter-player' : 'enter-banker', target === 'P' ? 'PLAYER' : 'BANKER', 'Sniper 3x: Entrada confirmada');
+      currentSignal = target;
+      return;
+    }
+
+    setSignal('wait', 'ANALISANDO', 'Buscando padrão Sniper...');
+  }
+
+  function setSignal(cls, txt, sub) {
+    const card = document.getElementById('signal-card');
+    const main = document.getElementById('signal-main');
+    card.className = 'signal-card ' + cls;
+    main.innerText = txt;
+    main.className = 'signal-main ' + (txt==='PLAYER'?'player':txt==='BANKER'?'banker':'wait');
+    document.getElementById('signal-sub').innerText = sub;
+  }
+
+  setInterval(update, 3000);
+  update();
+</script>
+</body>
+</html>
