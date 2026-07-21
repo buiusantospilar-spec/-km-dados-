@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BAC BO NEURAL V10.4 - FINAL</title>
+    <style>
+        :root { --bg: #05070a; --accent: #00f2ff; --p: #007bff; --b: #ff4d4d; --t: #00ff88; }
+        body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; text-align: center; margin: 0; padding: 20px; }
+        .card { background: #0d1117; border: 1px solid var(--accent); border-radius: 20px; padding: 20px; max-width: 400px; margin: auto; box-shadow: 0 0 20px rgba(0,242,255,0.2); }
+        .status { color: var(--accent); font-size: 0.8rem; margin-bottom: 15px; font-weight: bold; }
+        .beads { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 20px 0; min-height: 30px; }
+        .bead { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; }
+        .P { background: var(--p); box-shadow: 0 0 10px var(--p); }
+        .B { background: var(--b); box-shadow: 0 0 10px var(--b); }
+        .T { background: var(--t); box-shadow: 0 0 10px var(--t); }
+        .signal-box { margin: 20px 0; padding: 15px; border-radius: 15px; background: rgba(255,255,255,0.05); }
+        .signal-text { font-size: 1.8rem; font-weight: 900; margin: 5px 0; }
+        .instruction { font-size: 0.9rem; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div id="status" class="status">● CONECTANDO...</div>
+        <h1>NEURAL SNIPER</h1>
+        <div class="instruction">V10.4 PRO</div>
+        
+        <div class="signal-box">
+            <div id="signal" class="signal-text">ANALISANDO</div>
+            <div id="instruction" class="instruction">ESCANEANDO CICLOS DA MESA</div>
+        </div>
+
+        <div id="beads" class="beads"></div>
+    </div>
+
+    <script>
+        async function check() {
+            try {
+                const res = await fetch('/api/bacbo');
+                const data = await res.json();
+                const status = document.getElementById('status');
+                const beads = document.getElementById('beads');
+                const signal = document.getElementById('signal');
+                const inst = document.getElementById('instruction');
+
+                if (Array.isArray(data) && data.length > 0) {
+                    status.innerText = "● LIVE - CONECTADO";
+                    status.style.color = "#00ff88";
+                    beads.innerHTML = '';
+                    
+                    // Mapeia os resultados para as letras P, B, T
+                    const results = data.slice(0, 10).map(d => {
+                        let res = 'T';
+                        const val = (d.result || d.type || d.winner || "").toUpperCase();
+                        if (val.includes('PLAYER') || val === 'P') res = 'P';
+                        else if (val.includes('BANKER') || val === 'B') res = 'B';
+                        else if (val.includes('TIE') || val === 'T') res = 'T';
+                        return res;
+                    });
+
+                    results.forEach(r => {
+                        const b = document.createElement('div');
+                        b.className = `bead ${r}`;
+                        b.innerText = r;
+                        beads.appendChild(b);
+                    });
+
+                    // Lógica Sniper
+                    const last3 = results.slice(0, 3).join('');
+                    if (last3 === 'PPP') {
+                        signal.innerText = "ENTRAR NO VERMELHO";
+                        signal.style.color = "var(--b)";
+                        inst.innerText = "QUEBRA DE SEQUÊNCIA DETECTADA";
+                    } else if (last3 === 'BBB') {
+                        signal.innerText = "ENTRAR NO AZUL";
+                        signal.style.color = "var(--p)";
+                        inst.innerText = "QUEBRA DE SEQUÊNCIA DETECTADA";
+                    } else {
+                        signal.innerText = "ANALISANDO";
+                        signal.style.color = "white";
+                        inst.innerText = "AGUARDANDO PADRÃO SNIPER";
+                    }
+                }
+            } catch (e) {
+                status.innerText = "● ERRO DE SINCRONISMO";
+                status.style.color = "red";
+            }
+        }
+        setInterval(check, 2500);
+        check();
+    </script>
+</body>
+</html>
