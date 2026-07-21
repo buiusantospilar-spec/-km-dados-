@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BAC BO NEURAL V10.3</title>
+    <style>
+        :root { --bg: #05070a; --accent: #00f2ff; --p: #007bff; --b: #ff4d4d; --t: #00ff88; }
+        body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; text-align: center; margin: 0; padding: 20px; }
+        .card { background: #0d1117; border: 1px solid var(--accent); border-radius: 20px; padding: 20px; max-width: 400px; margin: auto; box-shadow: 0 0 20px rgba(0,242,255,0.1); }
+        .status { color: #00ff88; font-size: 0.9rem; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .box { background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px; margin-bottom: 20px; min-height: 120px; display: flex; flex-direction: column; justify-content: center; }
+        .inst { font-size: 0.7rem; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .signal { font-size: 1.8rem; font-weight: 800; }
+        .beads { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 20px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 10px; }
+        .bead { width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
+        .P { background: var(--p); box-shadow: 0 0 10px var(--p); }
+        .B { background: var(--b); box-shadow: 0 0 10px var(--b); }
+        .T { background: var(--t); box-shadow: 0 0 10px var(--t); }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2 style="font-size: 1.2rem; margin-bottom: 5px; letter-spacing: 2px;">NEURAL SNIPER V10.3</h2>
+        <div id="status" class="status">● CONECTANDO...</div>
+        
+        <div class="box">
+            <div id="inst" class="inst">ESCANEANDO CICLOS</div>
+            <div id="signal" class="signal">AGUARDE</div>
+        </div>
+
+        <div id="beads" class="beads"></div>
+    </div>
+
+    <script>
+        async function check() {
+            try {
+                const r = await fetch('/api/bacbo');
+                const data = await r.json();
+                const beads = document.getElementById('beads');
+                const signal = document.getElementById('signal');
+                const inst = document.getElementById('inst');
+                const status = document.getElementById('status');
+
+                if (Array.isArray(data) && data.length > 0) {
+                    status.innerText = "● LIVE - CONECTADO";
+                    beads.innerHTML = '';
+                    
+                    // Corrigindo o "undefined": acessamos d.result ou d.type conforme a API
+                    data.slice(0, 10).forEach(d => {
+                        const res = d.result || d.type || (d.winner ? d.winner[0] : null);
+                        if (res) {
+                            const b = document.createElement('div');
+                            b.className = `bead ${res}`;
+                            beads.appendChild(b);
+                        }
+                    });
+
+                    const results = data.slice(0, 3).map(d => d.result || d.type || (d.winner ? d.winner[0] : null));
+                    const last3 = results.join('');
+
+                    if (last3 === 'PPP') {
+                        signal.innerText = "ENTRAR BANQUEIRO";
+                        signal.style.color = "var(--b)";
+                        inst.innerText = "TIRO CONFIRMADO NO VERMELHO";
+                    } else if (last3 === 'BBB') {
+                        signal.innerText = "ENTRAR JOGADOR";
+                        signal.style.color = "var(--p)";
+                        inst.innerText = "TIRO CONFIRMADO NO AZUL";
+                    } else {
+                        signal.innerText = "ANALISANDO...";
+                        signal.style.color = "white";
+                        inst.innerText = "AGUARDANDO PADRÃO SNIPER";
+                    }
+                }
+            } catch (e) {
+                status.innerText = "● ERRO DE SINCRONISMO";
+            }
+        }
+        setInterval(check, 2500);
+        check();
+    </script>
+</body>
+</html>
