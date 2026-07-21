@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KM DADOS - BAC BO V7 KTO</title>
+  <style>
+    :root {
+      --bg: #0f172a; --card: #1e293b; --player: #2563eb; --banker: #dc2626; --tie: #eab308; --text: #f8fafc;
+    }
+    body { background: var(--bg); color: var(--text); font-family: sans-serif; text-align: center; padding: 20px; }
+    .card { background: var(--card); border-radius: 15px; padding: 20px; border: 2px solid #334155; max-width: 400px; margin: 0 auto 20px; }
+    .signal { font-size: 24px; font-weight: bold; margin: 15px 0; padding: 10px; border-radius: 8px; }
+    .player { background: var(--player); }
+    .banker { background: var(--banker); }
+    .wait { background: #334155; }
+    .surf { background: #a855f7; }
+    .history { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+    .dot { width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2>KM DADOS SNIPER</h2>
+  <div id="signal" class="signal wait">ANALISANDO...</div>
+  <div id="desc">Monitorando tendências KTO...</div>
+</div>
+
+<div class="history" id="history"></div>
+
+<script>
+  async function update() {
+    try {
+      const resp = await fetch('/api/bacbo');
+      const data = await resp.json();
+      
+      // Processamento Estável V5.5 Original
+      const results = data.map(item => {
+        const outcome = item.data?.result?.outcome || '';
+        if (outcome.includes('Player')) return 'P';
+        if (outcome.includes('Banker')) return 'B';
+        return 'T';
+      }).slice(0, 30);
+
+      // Histórico
+      const histDiv = document.getElementById('history');
+      histDiv.innerHTML = '';
+      results.slice(0, 15).forEach(res => {
+        const dot = document.createElement('div');
+        dot.className = 'dot ' + (res === 'P' ? 'player' : res === 'B' ? 'banker' : 'tie');
+        dot.innerText = res;
+        histDiv.appendChild(dot);
+      });
+
+      const sig = document.getElementById('signal');
+      const desc = document.getElementById('desc');
+
+      // LÓGICA APRIMORADA GUIA KTO (Sniper 3x + Anti-Surf)
+      if (results.length >= 4) {
+        const last4 = results.slice(0, 4);
+        const last3 = results.slice(0, 3);
+        
+        // 1. TRAVA ANTI-SURF (Sequências Longas - KTO recomenda cautela)
+        if (last4.every(r => r === 'P') || last4.every(r => r === 'B')) {
+          sig.innerText = 'AGUARDAR QUEBRA';
+          sig.className = 'signal surf';
+          desc.innerText = 'Sequência longa detectada (Anti-Surf).';
+          return;
+        }
+
+        // 2. PADRÃO SNIPER KTO (3 Cores Iguais)
+        if (last3.every(r => r === 'P')) {
+          sig.innerText = 'ENTRAR NO BANKER';
+          sig.className = 'signal banker';
+          desc.innerText = 'Estratégia Sniper 3x KTO.';
+          return;
+        }
+        if (last3.every(r => r === 'B')) {
+          sig.innerText = 'ENTRAR NO PLAYER';
+          sig.className = 'signal player';
+          desc.innerText = 'Estratégia Sniper 3x KTO.';
+          return;
+        }
+
+        // 3. PADRÃO XADREZ (Alternância)
+        if (last4[0] !== last4[1] && last4[1] === last4[3] && last4[0] === last4[2] && last4[0] !== 'T' && last4[1] !== 'T') {
+          const next = last4[0] === 'P' ? 'BANKER' : 'PLAYER';
+          sig.innerText = 'ENTRAR NO ' + next;
+          sig.className = 'signal ' + next.toLowerCase();
+          desc.innerText = 'Padrão Xadrez KTO Detectado.';
+          return;
+        }
+      }
+
+      sig.innerText = 'ANALISANDO';
+      sig.className = 'signal wait';
+      desc.innerText = 'Monitorando mesa da Evolution...';
+
+    } catch (e) { console.error(e); }
+  }
+
+  setInterval(update, 5000);
+  update();
+</script>
+</body>
+</html>
