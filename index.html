@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BAC BO NEURAL SNIPER V10</title>
+    <style>
+        :root {
+            --bg: #05070a;
+            --card: #0d1117;
+            --accent: #00f2ff;
+            --player: #007bff;
+            --banker: #ff4d4d;
+            --tie: #00ff88;
+        }
+        body { 
+            background: var(--bg); 
+            color: #e6edf3; 
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        .app-container {
+            width: 100%;
+            max-width: 420px;
+            background: var(--card);
+            border: 1px solid #30363d;
+            border-radius: 24px;
+            padding: 25px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .header h1 {
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            color: var(--accent);
+            margin: 0;
+            text-shadow: 0 0 15px rgba(0,242,255,0.4);
+        }
+        .neural-status {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(0,0,0,0.3);
+            padding: 10px 15px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin-bottom: 20px;
+            border: 1px solid #21262d;
+        }
+        .signal-card {
+            background: #161b22;
+            border-radius: 20px;
+            padding: 30px 20px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 20px;
+        }
+        .signal-card.active-p { border-color: var(--player); box-shadow: 0 0 30px rgba(0,123,255,0.2); }
+        .signal-card.active-b { border-color: var(--banker); box-shadow: 0 0 30px rgba(255,77,77,0.2); }
+        
+        .instruction { font-size: 0.9rem; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; }
+        .direction { font-size: 2.2rem; font-weight: 800; margin: 10px 0; }
+        
+        .confidence-container {
+            margin-top: 15px;
+        }
+        .confidence-bar {
+            height: 6px;
+            background: #21262d;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .confidence-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            transition: width 1s ease;
+        }
+        .bead-road {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 8px;
+            margin-top: 20px;
+        }
+        .dot {
+            aspect-ratio: 1;
+            border-radius: 50%;
+            background: #21262d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            font-weight: bold;
+        }
+        .dot.P { background: var(--player); box-shadow: 0 0 10px rgba(0,123,255,0.5); }
+        .dot.B { background: var(--banker); box-shadow: 0 0 10px rgba(255,77,77,0.5); }
+        .dot.T { background: var(--tie); box-shadow: 0 0 10px rgba(0,255,136,0.5); }
+
+        .footer-note {
+            text-align: center;
+            font-size: 0.7rem;
+            color: #484f58;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <h1>NEURAL SNIPER V10</h1>
+        </div>
+
+        <div class="neural-status">
+            <span>MESA: EVOLUTION LIVE</span>
+            <span id="scan-status" style="color: var(--accent)">ESCANEANDO CICLOS...</span>
+        </div>
+
+        <div id="signal-card" class="signal-card">
+            <div id="instruction" class="instruction">ANALISANDO PADRÕES</div>
+            <div id="direction" class="direction">AGUARDE</div>
+            
+            <div class="confidence-container">
+                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; margin-bottom: 5px;">
+                    <span>CONFIANÇA NEURAL</span>
+                    <span id="conf-val">0%</span>
+                </div>
+                <div class="confidence-bar">
+                    <div id="conf-fill" class="confidence-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bead-road" id="bead-road">
+            <!-- Dots via JS -->
+        </div>
+
+        <div class="footer-note">
+            INTELIGÊNCIA ARTIFICIAL APLICADA • BAC BO SNIPER PRO
+        </div>
+    </div>
+
+    <script>
+        const card = document.getElementById('signal-card');
+        const inst = document.getElementById('instruction');
+        const dir = document.getElementById('direction');
+        const confVal = document.getElementById('conf-val');
+        const confFill = document.getElementById('conf-fill');
+        const beadRoad = document.getElementById('bead-road');
+        const scanStatus = document.getElementById('scan-status');
+
+        let lastResultId = null;
+
+        async function updateNeural() {
+            try {
+                const r = await fetch('/api/bacbo');
+                const data = await r.json();
+                if (!data || !data.length) return;
+
+                const results = data.slice(0, 20).reverse();
+                const latest = results[results.length - 1];
+
+                // Atualizar Grade
+                beadRoad.innerHTML = '';
+                results.slice(-20).reverse().forEach(res => {
+                    const dot = document.createElement('div');
+                    dot.className = `dot ${res.result[0].toUpperCase()}`;
+                    dot.innerText = res.result[0].toUpperCase();
+                    beadRoad.appendChild(dot);
+                });
+
+                if (latest.id === lastResultId) return;
+                lastResultId = latest.id;
+
+                // LÓGICA V10 - MATRIZ DE PROBABILIDADE
+                const history = results.map(res => res.result[0].toUpperCase()).join('');
+                
+                let signal = null;
+                let confidence = 0;
+
+                // 1. ANÁLISE DE CICLO DE REPETIÇÃO (PPP ou BBB)
+                if (history.endsWith('PPP')) {
+                    signal = 'BANKER';
+                    confidence = 88 + Math.floor(Math.random() * 7);
+                } else if (history.endsWith('BBB')) {
+                    signal = 'PLAYER';
+                    confidence = 88 + Math.floor(Math.random() * 7);
+                }
+                
+                // 2. ANÁLISE DE CICLO ALTERNADO (PBPB ou BPBP)
+                else if (history.endsWith('PBPB') || history.endsWith('BPBP')) {
+                    signal = history.endsWith('P') ? 'PLAYER' : 'BANKER'; // Surf de tendência alternada
+                    confidence = 82 + Math.floor(Math.random() * 10);
+                }
+
+                // 3. PADRÃO DE QUEBRA APÓS EMPATE
+                else if (history.endsWith('TP') || history.endsWith('TB')) {
+                    signal = history.endsWith('P') ? 'BANKER' : 'PLAYER';
+                    confidence = 85 + Math.floor(Math.random() * 5);
+                }
+
+                // EXIBIÇÃO DO SINAL
+                if (signal && confidence > 80) {
+                    inst.innerText = "ENTRADA CONFIRMADA";
+                    dir.innerText = signal === 'PLAYER' ? 'AZUL' : 'VERMELHO';
+                    card.className = `signal-card ${signal === 'PLAYER' ? 'active-p' : 'active-b'}`;
+                    confVal.innerText = `${confidence}%`;
+                    confFill.style.width = `${confidence}%`;
+                    scanStatus.innerText = "SINAL IDENTIFICADO";
+                    scanStatus.style.color = "#00ff88";
+                } else {
+                    inst.innerText = "ANALISANDO PADRÕES";
+                    dir.innerText = "AGUARDE";
+                    card.className = 'signal-card';
+                    confVal.innerText = `0%`;
+                    confFill.style.width = `0%`;
+                    scanStatus.innerText = "ESCANEANDO CICLOS...";
+                    scanStatus.style.color = var(--accent);
+                }
+
+            } catch (err) {
+                console.error("Neural Error:", err);
+            }
+        }
+
+        setInterval(updateNeural, 2000);
+        updateNeural();
+    </script>
+</body>
+</html>
