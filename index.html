@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BAC BO SNIPER V9.1</title>
+    <style>
+        :root { --bg: #0d1117; --card: #161b22; --accent: #00ff88; --p: #007bff; --b: #ff4d4d; --tie: #28a745; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .app { width: 90%; max-width: 400px; background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid #30363d; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .status { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .online { background: rgba(0, 255, 136, 0.1); color: var(--accent); border: 1px solid var(--accent); }
+        .offline { background: rgba(255, 77, 77, 0.1); color: var(--b); border: 1px solid var(--b); }
+        .signal-box { background: #0d1117; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 20px; border: 2px solid transparent; transition: 0.3s; }
+        .active-p { border-color: var(--p); box-shadow: 0 0 20px rgba(0, 123, 255, 0.3); }
+        .active-b { border-color: var(--b); box-shadow: 0 0 20px rgba(255, 77, 77, 0.3); }
+        .instruction { font-size: 14px; color: #8b949e; margin-bottom: 5px; }
+        .direction { font-size: 28px; font-weight: bold; letter-spacing: 2px; }
+        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .stat-card { background: #0d1117; padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-val { font-size: 20px; font-weight: bold; display: block; }
+        .stat-label { font-size: 10px; color: #8b949e; text-transform: uppercase; }
+        .history { display: flex; gap: 5px; overflow-x: auto; padding: 10px 0; border-top: 1px solid #30363d; }
+        .dot { min-width: 25px; height: 25px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="header">
+            <span style="font-weight: bold; color: var(--accent);">SNIPER V9.1</span>
+            <div id="status" class="status offline">CONECTANDO...</div>
+        </div>
+
+        <div id="signalBox" class="signal-box">
+            <div class="instruction" id="instr">ANALISANDO MERCADO</div>
+            <div class="direction" id="dir">AGUARDE</div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <span class="stat-val" id="pPerc" style="color: var(--p);">0%</span>
+                <span class="stat-label">Player (Azul)</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-val" id="bPerc" style="color: var(--b);">0%</span>
+                <span class="stat-label">Banker (Verm)</span>
+            </div>
+        </div>
+
+        <div class="history" id="history"></div>
+    </div>
+
+    <script>
+        let lastId = "";
+
+        async function update() {
+            try {
+                const r = await fetch('/api/bacbo');
+                const data = await r.json();
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    document.getElementById('status').innerText = "ERRO DE DADOS";
+                    document.getElementById('status').className = "status offline";
+                    return;
+                }
+
+                document.getElementById('status').innerText = "LIVE (CONECTADO)";
+                document.getElementById('status').className = "status online";
+
+                // Filtra apenas resolvidos e pega os últimos 15
+                const games = data.filter(g => g.status === 'Resolved').slice(0, 15);
+                const currentId = games[0].id;
+
+                // Atualiza Histórico Visual
+                const histDiv = document.getElementById('history');
+                histDiv.innerHTML = "";
+                games.forEach(g => {
+                    const dot = document.createElement('div');
+                    dot.className = 'dot';
+                    if(g.result === 'Player') { dot.style.background = 'var(--p)'; dot.innerText = 'P'; }
+                    else if(g.result === 'Banker') { dot.style.background = 'var(--b)'; dot.innerText = 'B'; }
+                    else { dot.style.background = 'var(--tie)'; dot.innerText = 'T'; }
+                    histDiv.appendChild(dot);
+                });
+
+                // Cálculo de Porcentagem
+                const pCount = games.filter(g => g.result === 'Player').length;
+                const bCount = games.filter(g => g.result === 'Banker').length;
+                document.getElementById('pPerc').innerText = Math.round((pCount/games.length)*100) + "%";
+                document.getElementById('bPerc').innerText = Math.round((bCount/games.length)*100) + "%";
+
+                // LÓGICA SNIPER CERTEIRA
+                const results = games.map(g => g.result);
+                const box = document.getElementById('signalBox');
+                const inst = document.getElementById('instr');
+                const dir = document.getElementById('dir');
+
+                // Padrão 1: Quebra de Sequência (3 iguais)
+                if (results[0] === results[1] && results[1] === results[2]) {
+                    if (results[0] === 'Player') {
+                        box.className = "signal-box active-b";
+                        inst.innerText = "ENTRADA CONFIRMADA";
+                        dir.innerText = "NO VERMELHO";
+                    } else if (results[0] === 'Banker') {
+                        box.className = "signal-box active-p";
+                        inst.innerText = "ENTRADA CONFIRMADA";
+                        dir.innerText = "NO AZUL";
+                    }
+                } 
+                // Padrão 2: Surf de Alternância (P-B-P ou B-P-B)
+                else if (results[0] !== results[1] && results[1] !== results[2]) {
+                    box.className = "signal-box";
+                    inst.innerText = "SURF DE TENDÊNCIA";
+                    dir.innerText = results[0] === 'Player' ? "VAI DAR AZUL" : "VAI DAR VERM";
+                }
+                else {
+                    box.className = "signal-box";
+                    inst.innerText = "ANALISANDO MERCADO";
+                    dir.innerText = "AGUARDE";
+                }
+
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        setInterval(update, 2500);
+        update();
+    </script>
+</body>
+</html>
