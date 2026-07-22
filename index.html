@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Km Dados - Bac Bo Sniper</title>
+    <style>
+        :root {
+            --bg-color: #0b0e14; --card-bg: #161b22; --text-main: #ffffff;
+            --text-secondary: #8b949e; --player-blue: #1f6feb;
+            --banker-red: #da3633; --tie-gold: #d29922; --btn-analisando: #1f2937;
+        }
+        body {
+            background-color: var(--bg-color); color: var(--text-main);
+            font-family: -apple-system, system-ui, sans-serif; margin: 0; display: flex;
+            flex-direction: column; align-items: center; padding: 20px;
+        }
+        .header { width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .logo-text { font-size: 20px; font-weight: bold; color: #58a6ff; }
+        .live-badge { background-color: rgba(218, 54, 51, 0.2); color: #f85149; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid #f85149; }
+        .card { background-color: var(--card-bg); width: 100%; max-width: 400px; border-radius: 12px; padding: 20px; margin-bottom: 15px; text-align: center; box-sizing: border-box; border: 1px solid #30363d; }
+        .status-btn { background-color: var(--btn-analisando); color: #8b949e; padding: 15px; border-radius: 10px; font-size: 24px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
+        .status-entrar { border: 2px solid #238636; box-shadow: 0 0 15px rgba(35,134,54,0.4); }
+        .status-entrar .status-btn { background-color: #238636; color: white; }
+        .section-title { font-size: 14px; color: var(--text-secondary); margin-bottom: 15px; text-align: left; text-transform: uppercase; }
+        .results-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+        .ball { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; border: 2px solid rgba(255,255,255,0.1); }
+        .ball-p { background-color: var(--player-blue); }
+        .ball-b { background-color: var(--banker-red); }
+        .ball-t { background-color: var(--tie-gold); }
+        .prediction-text { font-size: 32px; font-weight: bold; margin: 15px 0; color: #8b949e; }
+        .progress-container { width: 100%; height: 8px; background-color: #30363d; border-radius: 4px; margin: 10px 0; overflow: hidden; }
+        #progress-bar { width: 0%; height: 100%; background-color: #238636; transition: width 0.5s; }
+        .footer-info { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo-text">Km Dados</div>
+        <div class="live-badge">● AO VIVO</div>
+    </div>
+    <div class="card" id="status-card">
+        <div class="status-btn" id="status-text">ANALISANDO</div>
+        <div id="status-desc" style="color: #8b949e; font-size: 14px;">Aguardando sinal...</div>
+    </div>
+    <div class="card">
+        <div class="section-title">📊 ÚLTIMAS RODADAS</div>
+        <div class="results-grid" id="grid"></div>
+    </div>
+    <div class="card">
+        <div class="section-title">🔮 PRÓXIMO RESULTADO</div>
+        <div class="prediction-text" id="pred">---</div>
+        <div class="progress-container"><div id="progress-bar"></div></div>
+        <div class="footer-info"><span>FORÇA DA ANÁLISE</span><span id="force">0/8</span></div>
+    </div>
+    <script>
+        // Função para identificar padrões avançados (KTO + Sugestões do Vídeo)
+        function checkPatterns(results) {
+            if (results.length < 6) return { signal: null, force: 0, desc: '' };
+            
+            const types = results.map(r => r.type);
+            
+            // 1. Padrão SURF (Sequência de 4 ou mais iguais)
+            // No Surf, o robô aguarda a quebra para entrar no oposto
+            if (types[0] !== types[1] && types[1] === types[2] && types[2] === types[3] && types[3] === types[4] && types[1] !== 'T') {
+                return { signal: types[0] === 'P' ? 'BANKER' : 'PLAYER', force: 8, desc: 'Quebra de Surf detectada!' };
+            }
+
+            // 2. Padrão 2x2 (PP, BB -> Próxima: P) ou (BB, PP -> Próxima: B)
+            if (types[0] === types[1] && types[2] === types[3] && types[0] !== types[2] && types[0] !== 'T') {
+                return { signal: types[0] === 'P' ? 'BANKER' : 'PLAYER', force: 7, desc: 'Padrão 2x2 identificado!' };
+            }
+
+            // 3. Padrão 2-1-2 (BB, P, BB -> Próxima: P) ou (PP, B, PP -> Próxima: B)
+            if (types[0] === types[1] && types[2] !== types[1] && types[3] === types[4] && types[3] === types[0] && types[0] !== 'T') {
+                return { signal: types[2] === 'P' ? 'PLAYER' : 'BANKER', force: 8, desc: 'Padrão 2-1-2 detectado!' };
+            }
+
+            // 4. Padrão Alternância (Xadrez - P, B, P, B)
+            if (types[0] !== types[1] && types[1] !== types[2] && types[2] !== types[3] && types[0] !== 'T' && types[1] !== 'T') {
+                return { signal: types[0] === 'P' ? 'PLAYER' : 'BANKER', force: 7, desc: 'Continuidade de alternância!' };
+            }
+
+            // 5. Sniper 3x (Padrão de segurança)
+            if (types[0] === types[1] && types[1] === types[2] && types[0] !== 'T') {
+                return { signal: types[0] === 'P' ? 'BANKER' : 'PLAYER', force: 6, desc: 'Sequência de 3 detectada!' };
+            }
+
+            return { signal: null, force: 0, desc: '' };
+        }
+
+        async function update() {
+            try {
+                const res = await fetch('/api/bacbo?t=' + Date.now());
+                const data = await res.json();
+                if (!data.results) return;
+                
+                const results = data.results.slice(0, 12);
+                const grid = document.getElementById('grid');
+                grid.innerHTML = '';
+                
+                results.forEach(r => {
+                    const b = document.createElement('div');
+                    b.className = 'ball ball-' + r.type.toLowerCase();
+                    b.innerText = r.type;
+                    grid.appendChild(b);
+                });
+
+                const analysis = checkPatterns(results);
+                
+                const sCard = document.getElementById('status-card'), 
+                      sText = document.getElementById('status-text'), 
+                      sDesc = document.getElementById('status-desc'), 
+                      pText = document.getElementById('pred'), 
+                      pBar = document.getElementById('progress-bar'), 
+                      fVal = document.getElementById('force');
+
+                if (analysis.signal) {
+                    const target = analysis.signal;
+                    sCard.classList.add('status-entrar');
+                    sText.innerText = 'ENTRAR - ' + target;
+                    sDesc.innerText = analysis.desc;
+                    pText.innerText = target;
+                    pText.style.color = target === 'PLAYER' ? 'var(--player-blue)' : 'var(--banker-red)';
+                    pBar.style.width = (analysis.force * 12.5) + '%';
+                    fVal.innerText = analysis.force + '/8';
+                } else {
+                    sCard.classList.remove('status-entrar');
+                    sText.innerText = 'ANALISANDO';
+                    sDesc.innerText = 'Aguardando sinal forte...';
+                    pText.innerText = '---';
+                    pText.style.color = '#8b949e';
+                    pBar.style.width = '0%';
+                    fVal.innerText = '0/8';
+                }
+            } catch (e) { console.error(e); }
+        }
+        setInterval(update, 3000);
+        update();
+    </script>
+</body>
+</html>
