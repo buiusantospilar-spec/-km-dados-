@@ -60,7 +60,6 @@
 
     .container { max-width: 900px; margin: 0 auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 16px; }
 
-    /* STATUS */
     .status-bar {
       display: flex; align-items: center; justify-content: space-between;
       background: var(--card); border: 1px solid var(--border);
@@ -69,9 +68,7 @@
     .status-left { display: flex; align-items: center; gap: 8px; color: var(--muted); }
     .status-ok { color: var(--green); font-weight: 600; }
     .status-err { color: var(--banker); font-weight: 600; }
-    .update-timer { color: var(--purple); font-weight: 700; }
 
-    /* PREVISÃO PRINCIPAL */
     .prediction-card {
       background: var(--card); border: 1px solid var(--border);
       border-radius: 20px; padding: 24px; text-align: center;
@@ -96,7 +93,6 @@
       border-radius: 12px; font-size: 13px; color: #c084fc; line-height: 1.5;
     }
 
-    /* SINAIS DOS PADRÕES */
     .patterns-grid {
       display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
     }
@@ -116,7 +112,6 @@
     .signal-dot.n { background: var(--muted); }
     .pattern-desc { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
 
-    /* VOTOS */
     .votes-card {
       background: var(--card); border: 1px solid var(--border);
       border-radius: 16px; padding: 18px;
@@ -133,7 +128,6 @@
     .vote-fill.b { background: linear-gradient(90deg, var(--banker), #f87171); }
     .vote-pct { font-size: 11px; color: var(--muted); }
 
-    /* BEAD ROAD */
     .section-title {
       font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px;
       color: var(--muted); margin-bottom: 12px;
@@ -151,6 +145,27 @@
     .bead.B { background: rgba(239,68,68,0.2); border: 2px solid var(--banker); color: var(--banker); }
     .bead.T { background: rgba(245,158,11,0.2); border: 2px solid var(--tie); color: var(--tie); }
     .bead.new-result { animation: popIn 0.4s ease; }
+
+    .signal-card {
+      border-radius: 20px; padding: 24px; text-align: center;
+      border: 2px solid; position: relative; overflow: hidden;
+    }
+    .signal-card.enter-player {
+      background: rgba(34,197,94,0.12); border-color: var(--green);
+      box-shadow: 0 0 30px rgba(34,197,94,0.3);
+    }
+    .signal-card.enter-banker {
+      background: rgba(34,197,94,0.12); border-color: var(--green);
+      box-shadow: 0 0 30px rgba(34,197,94,0.3);
+    }
+    .signal-card.wait {
+      background: rgba(245,158,11,0.08); border-color: var(--tie);
+    }
+    .signal-main { font-size: 36px; font-weight: 900; margin-bottom: 6px; }
+    .signal-main.go   { color: var(--green); }
+    .signal-main.wait { color: var(--tie); }
+    @keyframes glow { 0%,100%{box-shadow:0 0 20px rgba(34,197,94,0.3)} 50%{box-shadow:0 0 50px rgba(34,197,94,0.7)} }
+    .signal-card.enter-player, .signal-card.enter-banker { animation: glow 1.5s ease-in-out infinite; }
 
     .disclaimer { text-align: center; font-size: 11px; color: var(--muted); padding: 8px 16px; border-top: 1px solid var(--border); margin-top: 4px; }
 
@@ -179,7 +194,6 @@
 
 <div class="container">
 
-  <!-- STATUS -->
   <div class="status-bar">
     <div class="status-left">
       <span>📡 Evolution Gaming</span>
@@ -190,19 +204,16 @@
     </div>
   </div>
 
-  <!-- SINAL DE ENTRADA -->
   <div class="signal-card wait" id="signal-card">
     <div class="signal-main wait" id="signal-main">⏳ AGUARDAR</div>
     <div class="signal-sub" id="signal-sub">Analisando padrões...</div>
   </div>
 
-  <!-- ÚLTIMAS RODADAS -->
   <div class="bead-road">
     <div class="section-title">🎲 Últimas rodadas ao vivo</div>
     <div class="beads" id="beads-container"></div>
   </div>
 
-  <!-- PREVISÃO PRINCIPAL -->
   <div class="prediction-card">
     <div class="pred-label">🔮 Próximo resultado previsto</div>
     <div class="pred-main loading" id="pred-result">---</div>
@@ -210,7 +221,6 @@
     <div class="pred-pattern" id="pred-pattern">Aguardando padrão Sniper 3x.</div>
   </div>
 
-  <!-- PADRÕES OFICIAIS -->
   <div class="bead-road">
     <div class="section-title">🧠 Padrões Oficiais Bac Bo</div>
     <div class="patterns-grid">
@@ -237,7 +247,6 @@
     </div>
   </div>
 
-  <!-- PLACAR DE VOTOS -->
   <div class="votes-card">
     <div class="votes-title">📊 Consenso dos Padrões</div>
     <div class="votes-row">
@@ -262,6 +271,8 @@
 
 <script>
     let lastId = null;
+    let historicoCompleto = [];
+    let idsRegistrados = new Set();
     const bCont = document.getElementById('beads-container');
     const sCard = document.getElementById('signal-card');
     const sMain = document.getElementById('signal-main');
@@ -280,7 +291,7 @@
             const json = await r.json();
             
             if (Array.isArray(json) && json.length > 0) {
-                const results = json.map(item => {
+                const novosResultados = json.map(item => {
                     const outcome = item.data && item.data.result ? item.data.result.outcome : '';
                     let res = '';
                     if (outcome === 'PlayerWon') res = 'P';
@@ -289,57 +300,23 @@
                     return { id: item.id, result: res };
                 }).filter(r => r.result !== '');
 
-                if (results.length === 0) return;
-                const currentId = results[0].id;
+                if (novosResultados.length === 0) return;
 
-                if (currentId !== lastId) {
-                    lastId = currentId;
-                    bCont.innerHTML = '';
-                    results.slice(0, 48).forEach((res, index) => {
-                        const bead = document.createElement('div');
-                        bead.className = 'bead ' + res.result + (index === 0 ? ' new-result' : '');
-                        bead.innerText = res.result;
-                        bCont.appendChild(bead);
-                    });
-
-                    let pCount = 0, bCount = 0, last = results[0].result;
-                    let streak = 1;
-                    for(let i=1; i<results.length; i++) {
-                        if(results[i].result === last) streak++; else break;
+                // 🛡️ SISTEMA DE SEGURANÇA: NUNCA PERDE NENHUMA RODADA
+                let teveNovaRodada = false;
+                novosResultados.forEach(item => {
+                    if (!idsRegistrados.has(item.id)) {
+                        idsRegistrados.add(item.id);
+                        historicoCompleto.unshift(item);
+                        teveNovaRodada = true;
                     }
+                });
 
-                    if (streak >= 3) {
-                        const target = last === 'P' ? 'BANKER' : 'PLAYER';
-                        sCard.className = 'signal-card enter-' + target.toLowerCase();
-                        sMain.className = 'signal-main go';
-                        sMain.innerText = '🔥 ENTRAR ' + target;
-                        sSub.innerText = 'Padrão Sniper: ' + streak + 'x ' + (last === 'P' ? 'Player' : 'Banker');
-                        
-                        pRes.innerText = target;
-                        pRes.className = 'pred-main ' + target.toLowerCase();
-                        pConf.innerHTML = 'Confiança: <span>96%</span>';
-                        pPat.innerText = 'Estratégia: Quebra de sequência em ' + target;
-                        
-                        if(target === 'PLAYER') { vP.style.width='80%'; vB.style.width='20%'; vPPct.innerText='80%'; vBPct.innerText='20%'; }
-                        else { vP.style.width='20%'; vB.style.width='80%'; vPPct.innerText='20%'; vBPct.innerText='80%'; }
-                    } else {
-                        sCard.className = 'signal-card wait';
-                        sMain.className = 'signal-main wait';
-                        sMain.innerText = '⏳ AGUARDAR';
-                        sSub.innerText = 'Analisando padrões...';
-                        pRes.innerText = '---';
-                        pRes.className = 'pred-main loading';
-                        pConf.innerText = 'Analisando força...';
-                        pPat.innerText = 'Aguardando padrão Sniper 3x.';
-                        vP.style.width='50%'; vB.style.width='50%'; vPPct.innerText='50%'; vBPct.innerText='50%';
-                    }
+                // Mantém apenas os últimos 48 resultados para não sobrecarregar
+                if (historicoCompleto.length > 48) {
+                    historicoCompleto = historicoCompleto.slice(0, 48);
                 }
-            }
-        } catch (e) { console.error(e); }
-    }
 
-    setInterval(update, 2000);
-    update();
-</script>
-</body>
-</html>
+                const currentId = historicoCompleto[0].id;
+
+          
