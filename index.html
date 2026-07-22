@@ -284,13 +284,18 @@
     const vB = document.getElementById('vote-b-bar');
     const vPPct = document.getElementById('vote-p-pct');
     const vBPct = document.getElementById('vote-b-pct');
+    const statusText = document.getElementById('status-text');
 
     async function update() {
         try {
+            // Mesma forma de conexão do código antigo, sem alterações
             const r = await fetch('https://api-cs.casino.org/svc-evolution-game-events/api/bacbo');
             const json = await r.json();
             
             if (Array.isArray(json) && json.length > 0) {
+                statusText.className = 'status-ok';
+                statusText.innerText = 'ONLINE';
+
                 const novosResultados = json.map(item => {
                     const outcome = item.data && item.data.result ? item.data.result.outcome : '';
                     let res = '';
@@ -302,6 +307,7 @@
 
                 if (novosResultados.length === 0) return;
 
+                // Sistema de segurança: nunca perde nenhuma rodada
                 let teveNovaRodada = false;
                 novosResultados.forEach(item => {
                     if (!idsRegistrados.has(item.id)) {
@@ -369,8 +375,8 @@
             }
         } catch (e) { 
             console.error(e); 
-            document.getElementById('status-text').className = 'status-err';
-            document.getElementById('status-text').innerText = 'ERRO DE CONEXÃO';
+            statusText.className = 'status-err';
+            statusText.innerText = 'ERRO DE CONEXÃO';
         }
     }
 
