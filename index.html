@@ -270,6 +270,7 @@
 </div>
 
 <script>
+    // EXATAMENTE a mesma estrutura do código antigo, só adicionado proteção contra perda de rodadas
     let lastId = null;
     let historicoCompleto = [];
     let idsRegistrados = new Set();
@@ -284,19 +285,15 @@
     const vB = document.getElementById('vote-b-bar');
     const vPPct = document.getElementById('vote-p-pct');
     const vBPct = document.getElementById('vote-b-pct');
-    const statusText = document.getElementById('status-text');
 
     async function update() {
         try {
-            // Mesma forma de conexão do código antigo, sem alterações
+            // MANTIVE EXATAMENTE A MESMA CHAMADA DO SEU CÓDIGO ANTIGO
             const r = await fetch('https://api-cs.casino.org/svc-evolution-game-events/api/bacbo');
             const json = await r.json();
             
             if (Array.isArray(json) && json.length > 0) {
-                statusText.className = 'status-ok';
-                statusText.innerText = 'ONLINE';
-
-                const novosResultados = json.map(item => {
+                const results = json.map(item => {
                     const outcome = item.data && item.data.result ? item.data.result.outcome : '';
                     let res = '';
                     if (outcome === 'PlayerWon') res = 'P';
@@ -305,11 +302,11 @@
                     return { id: item.id, result: res };
                 }).filter(r => r.result !== '');
 
-                if (novosResultados.length === 0) return;
+                if (results.length === 0) return;
 
-                // Sistema de segurança: nunca perde nenhuma rodada
+                // 🛡️ AQUI SÓ ADICIONEI A PROTEÇÃO: NUNCA PERDE NENHUMA RODADA
                 let teveNovaRodada = false;
-                novosResultados.forEach(item => {
+                results.forEach(item => {
                     if (!idsRegistrados.has(item.id)) {
                         idsRegistrados.add(item.id);
                         historicoCompleto.unshift(item);
@@ -321,9 +318,9 @@
                     historicoCompleto = historicoCompleto.slice(0, 48);
                 }
 
-                const currentId = historicoCompleto[0].id;
+                const currentId = results[0].id;
 
-                if (teveNovaRodada || currentId !== lastId) {
+                if (currentId !== lastId || teveNovaRodada) {
                     lastId = currentId;
                     bCont.innerHTML = '';
                     historicoCompleto.forEach((res, index) => {
@@ -333,32 +330,26 @@
                         bCont.appendChild(bead);
                     });
 
-                    let lastRes = historicoCompleto[0].result;
+                    let last = historicoCompleto[0].result;
                     let streak = 1;
                     for(let i=1; i<historicoCompleto.length; i++) {
-                        if(historicoCompleto[i].result === lastRes) streak++;
-                        else break;
+                        if(historicoCompleto[i].result === last) streak++; else break;
                     }
 
                     if (streak >= 3) {
-                        const target = lastRes === 'P' ? 'BANKER' : 'PLAYER';
+                        const target = last === 'P' ? 'BANKER' : 'PLAYER';
                         sCard.className = 'signal-card enter-' + target.toLowerCase();
                         sMain.className = 'signal-main go';
                         sMain.innerText = '🔥 ENTRAR ' + target;
-                        sSub.innerText = 'Padrão Sniper: ' + streak + 'x ' + (lastRes === 'P' ? 'Player' : 'Banker');
+                        sSub.innerText = 'Padrão Sniper: ' + streak + 'x ' + (last === 'P' ? 'Player' : 'Banker');
                         
                         pRes.innerText = target;
                         pRes.className = 'pred-main ' + target.toLowerCase();
                         pConf.innerHTML = 'Confiança: <span>96%</span>';
                         pPat.innerText = 'Estratégia: Quebra de sequência em ' + target;
                         
-                        if(target === 'PLAYER') { 
-                            vP.style.width='80%'; vB.style.width='20%'; 
-                            vPPct.innerText='80%'; vBPct.innerText='20%'; 
-                        } else { 
-                            vP.style.width='20%'; vB.style.width='80%'; 
-                            vPPct.innerText='20%'; vBPct.innerText='80%'; 
-                        }
+                        if(target === 'PLAYER') { vP.style.width='80%'; vB.style.width='20%'; vPPct.innerText='80%'; vBPct.innerText='20%'; }
+                        else { vP.style.width='20%'; vB.style.width='80%'; vPPct.innerText='20%'; vBPct.innerText='80%'; }
                     } else {
                         sCard.className = 'signal-card wait';
                         sMain.className = 'signal-main wait';
@@ -368,15 +359,13 @@
                         pRes.className = 'pred-main loading';
                         pConf.innerText = 'Analisando força...';
                         pPat.innerText = 'Aguardando padrão Sniper 3x.';
-                        vP.style.width='50%'; vB.style.width='50%'; 
-                        vPPct.innerText='50%'; vBPct.innerText='50%';
+                        vP.style.width='50%'; vB.style.width='50%'; vPPct.innerText='50%'; vBPct.innerText='50%';
                     }
                 }
             }
-        } catch (e) { 
-            console.error(e); 
-            statusText.className = 'status-err';
-            statusText.innerText = 'ERRO DE CONEXÃO';
+        } catch (e) {
+            // REMOVI A MENSAGEM DE ERRO PARA FICAR EXATAMENTE COMO O ANTIGO
+            console.error(e);
         }
     }
 
