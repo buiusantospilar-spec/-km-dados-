@@ -67,7 +67,6 @@
     }
     .status-left { display: flex; align-items: center; gap: 8px; color: var(--muted); }
     .status-ok { color: var(--green); font-weight: 600; }
-    .status-err { color: var(--banker); font-weight: 600; }
 
     .prediction-card {
       background: var(--card); border: 1px solid var(--border);
@@ -270,7 +269,7 @@
 </div>
 
 <script>
-    // EXATAMENTE a mesma estrutura do código antigo, só adicionado proteção contra perda de rodadas
+    // EXATAMENTE A LÓGICA DO SEU CÓDIGO ORIGINAL + PROTEÇÃO CONTRA PERDA DE RODADAS
     let lastId = null;
     let historicoCompleto = [];
     let idsRegistrados = new Set();
@@ -288,13 +287,14 @@
 
     async function update() {
         try {
-            // MANTIVE EXATAMENTE A MESMA CHAMADA DO SEU CÓDIGO ANTIGO
+            // MANTIVE EXATAMENTE A CHAMADA E LEITURA DO SEU CÓDIGO ANTIGO
             const r = await fetch('https://api-cs.casino.org/svc-evolution-game-events/api/bacbo');
             const json = await r.json();
             
             if (Array.isArray(json) && json.length > 0) {
+                // EXATAMENTE COMO O ANTIGO LÊ OS DADOS
                 const results = json.map(item => {
-                    const outcome = item.data && item.data.result ? item.data.result.outcome : '';
+                    const outcome = item.data?.result?.outcome || '';
                     let res = '';
                     if (outcome === 'PlayerWon') res = 'P';
                     else if (outcome === 'BankerWon') res = 'B';
@@ -304,7 +304,9 @@
 
                 if (results.length === 0) return;
 
-                // 🛡️ AQUI SÓ ADICIONEI A PROTEÇÃO: NUNCA PERDE NENHUMA RODADA
+                const currentId = results[0].id;
+
+                // 🛡️ Proteção: nunca perde nenhuma rodada
                 let teveNovaRodada = false;
                 results.forEach(item => {
                     if (!idsRegistrados.has(item.id)) {
@@ -318,10 +320,11 @@
                     historicoCompleto = historicoCompleto.slice(0, 48);
                 }
 
-                const currentId = results[0].id;
-
+                // ATUALIZA APENAS QUANDO HOUVER ALTERAÇÃO REAL
                 if (currentId !== lastId || teveNovaRodada) {
                     lastId = currentId;
+                    
+                    // EXATAMENTE COMO O ANTIGO EXIBE OS DADOS
                     bCont.innerHTML = '';
                     historicoCompleto.forEach((res, index) => {
                         const bead = document.createElement('div');
@@ -348,8 +351,13 @@
                         pConf.innerHTML = 'Confiança: <span>96%</span>';
                         pPat.innerText = 'Estratégia: Quebra de sequência em ' + target;
                         
-                        if(target === 'PLAYER') { vP.style.width='80%'; vB.style.width='20%'; vPPct.innerText='80%'; vBPct.innerText='20%'; }
-                        else { vP.style.width='20%'; vB.style.width='80%'; vPPct.innerText='20%'; vBPct.innerText='80%'; }
+                        if(target === 'PLAYER') { 
+                            vP.style.width='80%'; vB.style.width='20%'; 
+                            vPPct.innerText='80%'; vBPct.innerText='20%'; 
+                        } else { 
+                            vP.style.width='20%'; vB.style.width='80%'; 
+                            vPPct.innerText='20%'; vBPct.innerText='80%'; 
+                        }
                     } else {
                         sCard.className = 'signal-card wait';
                         sMain.className = 'signal-main wait';
@@ -359,12 +367,12 @@
                         pRes.className = 'pred-main loading';
                         pConf.innerText = 'Analisando força...';
                         pPat.innerText = 'Aguardando padrão Sniper 3x.';
-                        vP.style.width='50%'; vB.style.width='50%'; vPPct.innerText='50%'; vBPct.innerText='50%';
+                        vP.style.width='50%'; vB.style.width='50%'; 
+                        vPPct.innerText='50%'; vBPct.innerText='50%';
                     }
                 }
             }
         } catch (e) {
-            // REMOVI A MENSAGEM DE ERRO PARA FICAR EXATAMENTE COMO O ANTIGO
             console.error(e);
         }
     }
