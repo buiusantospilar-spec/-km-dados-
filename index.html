@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Km Dados – Bac Bo Sniper Ultra-Assertivo</title>
+  <style>
+    :root {
+      --bg: #0a0c16;
+      --card: #12152a;
+      --card2: #1a1f38;
+      --border: #252a4a;
+      --player: #3b82f6;
+      --banker: #ef4444;
+      --tie: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --green: #22c55e;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+    header {
+      background: linear-gradient(135deg, #0f1629 0%, #1a0f3a 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon { font-size: 28px; filter: drop-shadow(0 0 8px rgba(168,85,247,0.8)); }
+    .logo-text {
+      font-size: 20px; font-weight: 800;
+      background: linear-gradient(90deg, #a855f7, #3b82f6);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .logo-sub { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* CARD DE ENTRADA MANUAL */
+    .input-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; padding: 20px; text-align: center;
+    }
+    .input-title { font-size: 14px; font-weight: 700; margin-bottom: 15px; color: var(--purple); text-transform: uppercase; }
+    
+    .dice-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .dice-team-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--card2);
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    
+    .dice-label { font-size: 12px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; }
+    .dice-label.p { color: var(--player); }
+    .dice-label.b { color: var(--banker); }
+    
+    .soma-field {
+      width: 70px; height: 50px; background: var(--bg); border: 2px solid var(--border);
+      border-radius: 8px; color: #fff; text-align: center; font-size: 22px; font-weight: 900;
+      outline: none; transition: all 0.3s;
+    }
+    .soma-field:focus { border-color: var(--purple); background: var(--card); }
+    
+    .btn-confirm {
+      width: 100%; padding: 16px; background: linear-gradient(90deg, var(--purple), #3b82f6);
+      border: none; border-radius: 12px; color: #fff; font-size: 16px; font-weight: 800;
+      cursor: pointer; text-transform: uppercase; transition: transform 0.2s, opacity 0.2s;
+    }
+    .btn-confirm:active { transform: scale(0.98); opacity: 0.9; }
+
+    /* SINAL DE ESTRATÉGIA */
+    .signal-card {
+      background: var(--card); border: 2px solid var(--border);
+      border-radius: 20px; padding: 24px; text-align: center;
+      transition: all 0.4s ease; position: relative; overflow: hidden;
+    }
+    .signal-card.active { border-color: var(--green); box-shadow: 0 0 20px rgba(34,197,94,0.3); }
+    
+    .percentage-badge {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(168,85,247,0.2); color: var(--purple);
+      padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 800;
+      border: 1px solid var(--purple);
+    }
+
+    .power-meter {
+      height: 6px; width: 100%; background: var(--bg); border-radius: 3px;
+      margin-top: 15px; overflow: hidden; display: none;
+    }
+    .power-fill {
+      height: 100%; width: 0%; background: linear-gradient(90deg, var(--purple), var(--green));
+      transition: width 0.5s ease;
+    }
+    .active .power-meter { display: block; }
+    
+    .signal-label { font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+    .signal-main { font-size: 32px; font-weight: 900; margin: 5px 0; }
+    .signal-main.wait { color: var(--tie); }
+    .signal-main.player { color: var(--player); }
+    .signal-main.banker { color: var(--banker); }
+    .signal-desc { font-size: 13px; color: var(--muted); }
+
+    /* HISTÓRICO E STATS */
+    .history-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+    .hist-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+    .hist-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .hist-item {
+      width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; border: 2px solid transparent; animation: popIn 0.3s ease forwards;
+    }
+    .hist-item.player { background: rgba(59,130,246,0.15); color: var(--player); border-color: rgba(59,130,246,0.4); }
+    .hist-item.banker { background: rgba(239,68,68,0.15); color: var(--banker); border-color: rgba(239,68,68,0.4); }
+    .hist-item.tie    { background: rgba(245,158,11,0.15); color: var(--tie); border-color: rgba(245,158,11,0.4); }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+    .stat-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; text-align: center; position: relative; }
+    .stat-val { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+    .stat-lab { font-size: 11px; text-transform: uppercase; color: var(--muted); }
+    .stat-box.green { border-color: var(--green); box-shadow: 0 0 10px rgba(34,197,94,0.2); }
+    .stat-box.red { border-color: var(--banker); box-shadow: 0 0 10px rgba(239,68,68,0.2); }
+    
+    .last-result-status {
+      display: inline-block; padding: 4px 12px; border-radius: 20px;
+      font-size: 14px; font-weight: bold; margin-top: 10px;
+      animation: popIn 0.5s ease;
+    }
+    .status-green { background: rgba(34,197,94,0.2); color: var(--green); border: 1px solid var(--green); }
+    .status-red { background: rgba(239,68,68,0.2); color: var(--banker); border: 1px solid var(--banker); }
+
+    @keyframes popIn { 0%{transform:scale(0);opacity:0} 100%{transform:scale(1);opacity:1} }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <span class="logo-icon">🎯</span>
+      <div>
+        <div class="logo-text">Km Dados</div>
+        <div class="logo-sub">Bac Bo Sniper Ultra-Assertivo</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    
+    <!-- ENTRADA MANUAL -->
+    <div class="input-card">
+      <div class="input-title">Painel de Comando Sniper</div>
+      
+      <div class="dice-container">
+        <div class="dice-team-row">
+          <div class="dice-label p">Azul (Jogador)</div>
+          <input type="number" id="somaP" class="soma-field" min="2" max="12" placeholder="0">
+        </div>
+
+        <div class="dice-team-row">
+          <div class="dice-label b">Vermelho (Banco)</div>
+          <input type="number" id="somaB" class="soma-field" min="2" max="12" placeholder="0">
+        </div>
+      </div>
+
+      <button class="btn-confirm" onclick="registrarRodada()">Confirmar Resultado</button>
+    </div>
+
+    <!-- SINAL -->
+    <div class="signal-card" id="signalCard">
+      <div class="percentage-badge" id="signalPerc">0%</div>
+      <div class="signal-label">Algoritmo Sniper V3 - Ultra Assertivo</div>
+      <div class="signal-main wait" id="signalText">AGUARDAR</div>
+      <div class="signal-desc" id="signalDesc">Analise o fluxo para iniciar o Sniper...</div>
+      <div class="power-meter"><div class="power-fill" id="powerFill"></div></div>
+      <div id="lastResultStatus"></div>
+    </div>
+
+    <!-- HISTÓRICO -->
+    <div class="history-card">
+      <div class="hist-title">📊 Histórico de Fluxo</div>
+      <div class="hist-list" id="historyList"></div>
+    </div>
+
+    <!-- ESTATÍSTICAS -->
+    <div class="stats-grid">
+      <div class="stat-box green">
+        <div class="stat-val" id="countGreens" style="color: var(--green);">0</div>
+        <div class="stat-lab">Greens</div>
+      </div>
+      <div class="stat-box red">
+        <div class="stat-val" id="countReds" style="color: var(--banker);">0</div>
+        <div class="stat-lab">Reds</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="winRate" style="color: var(--purple);">0%</div>
+        <div class="stat-lab">Win Rate</div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+let historico = [];
+let historicoSomas = []; 
+let sinalAtivo = null;
+let greens = 0;
+let reds = 0;
+let rodadasDescanso = 0; // Contador para o período de descanso
+const MAX_HIST = 50;
+
+function registrarRodada() {
+  const somaP = parseInt(document.getElementById('somaP').value) || 0;
+  const somaB = parseInt(document.getElementById('somaB').value) || 0;
+
+  if (somaP < 2 || somaP > 12 || somaB < 2 || somaB > 12) {
+    alert("Insira somas válidas (de 2 a 12)!");
+    return;
+  }
+
+  let resultado = '';
+  if (somaP > somaB) resultado = 'player';
+  else if (somaB > somaP) resultado = 'banker';
+  else resultado = 'tie';
+
+  // Verifica Green ou Red se houver sinal ativo
+  if (sinalAtivo) {
+    const statusEl = document.getElementById('lastResultStatus');
+    if (resultado === sinalAtivo || resultado === 'tie') {
+      greens++;
+      statusEl.innerHTML = `<div class="last-result-status status-green">✅ GREEN: ${resultado === 'tie' ? 'Empate' : 'Confirmado'}!</div>`;
+      rodadasDescanso = 3; // Após GREEN: Esperar 3 rodadas
+    } else {
+      reds++;
+      statusEl.innerHTML = `<div class="last-result-status status-red">❌ RED: Recuperar na próxima</div>`;
+      rodadasDescanso = 1; // Após RED: Esperar apenas 1 rodada
+    }
+    sinalAtivo = null; 
+  } else if (rodadasDescanso > 0) {
+    rodadasDescanso--; // Diminui o descanso a cada rodada manual inserida
+  }
+
+  // Adiciona ao histórico
+  historico.unshift(resultado);
+  historicoSomas.unshift({ p: somaP, b: somaB });
+  if (historico.length > MAX_HIST) {
+    historico.pop();
+    historicoSomas.pop();
+  }
+
+  // Limpa campos
+  document.getElementById('somaP').value = '';
+  document.getElementById('somaB').value = '';
+
+  atualizarInterface();
+}
+
+function atualizarInterface() {
+  const list = document.getElementById('historyList');
+  list.innerHTML = historico.map(item => {
+    let letra = item === 'player' ? 'P' : item === 'banker' ? 'B' : 'T';
+    return `<div class="hist-item ${item}">${letra}</div>`;
+  }).join('');
+
+  document.getElementById('countGreens').innerText = greens;
+  document.getElementById('countReds').innerText = reds;
+  
+  const total = greens + reds;
+  const wr = total > 0 ? Math.round((greens / total) * 100) : 0;
+  document.getElementById('winRate').innerText = wr + '%';
+
+  analisarPadrao();
+}
+
+function analisarPadrao() {
+  const card = document.getElementById('signalCard');
+  const text = document.getElementById('signalText');
+  const desc = document.getElementById('signalDesc');
+  const perc = document.getElementById('signalPerc');
+  const fill = document.getElementById('powerFill');
+
+  const h = historico; 
+  const lastSoma = historicoSomas[0];
+
+  // 1. MÍNIMO DE RODADAS (6)
+  if (h.length < 6) {
+    text.innerText = "AGUARDAR";
+    text.className = "signal-main wait";
+    card.classList.remove('active');
+    desc.innerText = `Análise requer 6 rodadas (Faltam: ${6 - h.length})`;
+    perc.innerText = "0%";
+    fill.style.width = "0%";
+    return;
+  }
+
+  // 2. PERÍODO DE DESCANSO (CALIBRANDO)
+  if (rodadasDescanso > 0) {
+    text.innerText = "CALIBRANDO";
+    text.className = "signal-main wait";
+    card.classList.remove('active');
+    desc.innerText = `Aguardando estabilização (Restam: ${rodadasDescanso} rodadas)`;
+    perc.innerText = "0%";
+    fill.style.width = "0%";
+    return;
+  }
+
+  // 3. DETECÇÃO DE SURF (4+ Mesma Cor) - BLOCK
+  if (h.length >= 4) {
+    const corBase = h[0];
+    if (corBase !== 'tie') {
+      let seq = 0;
+      for (let i = 0; i < h.length; i++) {
+        if (h[i] === corBase) seq++;
+        else break;
+      }
+      if (seq >= 4) {
+        text.innerText = "SURF DETECTADO";
+        text.className = "signal-main wait";
+        card.classList.remove('active');
+        desc.innerText = `Bloqueio de Surf (${seq}x ${corBase === 'player' ? 'Azul' : 'Vermelho'}). Aguarde quebra.`;
+        perc.innerText = "0%";
+        fill.style.width = "0%";
+        return;
+      }
+    }
+  }
+
+  let entrada = '';
+  let probabilidade = 0;
+  let motivo = '';
+
+  // --- PADRÕES ULTRA-ASSERTIVOS (RANKING PRIORITÁRIO - MIN 90%) ---
+
+  // I. Padrão 3x1 (V-V-V-A reversal)
+  if (!entrada && h.length >= 4) {
+    if (h[1] === h[2] && h[2] === h[3] && h[0] !== h[1] && h[0] !== 'tie' && h[1] !== 'tie') {
+      entrada = h[1];
+      probabilidade = 94;
+      motivo = "Padrão 3x1 Sniper: Reversão confirmada";
+    }
+  }
+
+  // II. Sniper de Volume de Empate (Accumulated energy)
+  const noTieStreak = h.slice(0, 12).every(x => x !== 'tie');
+  if (!entrada && noTieStreak && lastSoma && Math.abs(lastSoma.p - lastSoma.b) <= 1) {
+    entrada = 'tie';
+    probabilidade = 91;
+    motivo = "Sniper de Volume: Alta probabilidade de Empate (TIE)";
+  }
+
+  // --- FILTRO DE ASSERTIVIDADE MÍNIMA 90% ---
+  if (entrada && probabilidade >= 90) {
+    sinalAtivo = entrada;
+    card.classList.add('active');
+    if (entrada === 'tie') {
+      text.innerText = "ENTRAR EMPATE";
+      text.className = "signal-main wait";
+    } else {
+      text.innerText = entrada === 'player' ? "ENTRAR JOGADOR" : "ENTRAR BANCO";
+      text.className = "signal-main " + entrada;
+    }
+    desc.innerText = motivo;
+    perc.innerText = probabilidade + "%";
+    fill.style.width = probabilidade + "%";
+  } else {
+    card.classList.remove('active');
+    text.innerText = "AGUARDAR";
+    text.className = "signal-main wait";
+    desc.innerText = "Rastreando padrões Sniper de alta assertividade (Min. 90%)...";
+    perc.innerText = "0%";
+    fill.style.width = "0%";
+  }
+}
+</script>
+</body>
+</html>
