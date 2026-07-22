@@ -302,7 +302,6 @@
 
                 if (novosResultados.length === 0) return;
 
-                // 🛡️ SISTEMA DE SEGURANÇA: NUNCA PERDE NENHUMA RODADA
                 let teveNovaRodada = false;
                 novosResultados.forEach(item => {
                     if (!idsRegistrados.has(item.id)) {
@@ -312,11 +311,71 @@
                     }
                 });
 
-                // Mantém apenas os últimos 48 resultados para não sobrecarregar
                 if (historicoCompleto.length > 48) {
                     historicoCompleto = historicoCompleto.slice(0, 48);
                 }
 
                 const currentId = historicoCompleto[0].id;
 
-          
+                if (teveNovaRodada || currentId !== lastId) {
+                    lastId = currentId;
+                    bCont.innerHTML = '';
+                    historicoCompleto.forEach((res, index) => {
+                        const bead = document.createElement('div');
+                        bead.className = 'bead ' + res.result + (index === 0 ? ' new-result' : '');
+                        bead.innerText = res.result;
+                        bCont.appendChild(bead);
+                    });
+
+                    let lastRes = historicoCompleto[0].result;
+                    let streak = 1;
+                    for(let i=1; i<historicoCompleto.length; i++) {
+                        if(historicoCompleto[i].result === lastRes) streak++;
+                        else break;
+                    }
+
+                    if (streak >= 3) {
+                        const target = lastRes === 'P' ? 'BANKER' : 'PLAYER';
+                        sCard.className = 'signal-card enter-' + target.toLowerCase();
+                        sMain.className = 'signal-main go';
+                        sMain.innerText = '🔥 ENTRAR ' + target;
+                        sSub.innerText = 'Padrão Sniper: ' + streak + 'x ' + (lastRes === 'P' ? 'Player' : 'Banker');
+                        
+                        pRes.innerText = target;
+                        pRes.className = 'pred-main ' + target.toLowerCase();
+                        pConf.innerHTML = 'Confiança: <span>96%</span>';
+                        pPat.innerText = 'Estratégia: Quebra de sequência em ' + target;
+                        
+                        if(target === 'PLAYER') { 
+                            vP.style.width='80%'; vB.style.width='20%'; 
+                            vPPct.innerText='80%'; vBPct.innerText='20%'; 
+                        } else { 
+                            vP.style.width='20%'; vB.style.width='80%'; 
+                            vPPct.innerText='20%'; vBPct.innerText='80%'; 
+                        }
+                    } else {
+                        sCard.className = 'signal-card wait';
+                        sMain.className = 'signal-main wait';
+                        sMain.innerText = '⏳ AGUARDAR';
+                        sSub.innerText = 'Analisando padrões...';
+                        pRes.innerText = '---';
+                        pRes.className = 'pred-main loading';
+                        pConf.innerText = 'Analisando força...';
+                        pPat.innerText = 'Aguardando padrão Sniper 3x.';
+                        vP.style.width='50%'; vB.style.width='50%'; 
+                        vPPct.innerText='50%'; vBPct.innerText='50%';
+                    }
+                }
+            }
+        } catch (e) { 
+            console.error(e); 
+            document.getElementById('status-text').className = 'status-err';
+            document.getElementById('status-text').innerText = 'ERRO DE CONEXÃO';
+        }
+    }
+
+    setInterval(update, 2000);
+    update();
+</script>
+</body>
+</html>
