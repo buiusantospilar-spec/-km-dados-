@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Km Dados – Bac Bo Sniper</title>
+  <style>
+    :root {
+      --bg: #0a0c16;
+      --card: #12152a;
+      --card2: #1a1f38;
+      --border: #252a4a;
+      --player: #3b82f6;
+      --banker: #ef4444;
+      --tie: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --green: #22c55e;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+    header {
+      background: linear-gradient(135deg, #0f1629 0%, #1a0f3a 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon { font-size: 28px; filter: drop-shadow(0 0 8px rgba(168,85,247,0.8)); }
+    .logo-text {
+      font-size: 20px; font-weight: 800;
+      background: linear-gradient(90deg, #a855f7, #3b82f6);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .container { max-width: 900px; margin: 0 auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* ENTRADA MANUAL ESTILO ELITE */
+    .input-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 20px; }
+    .dice-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+    .dice-row { background: var(--card2); padding: 12px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
+    .dice-label { font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; color: var(--muted); }
+    .dice-label.p { color: var(--player); }
+    .dice-label.b { color: var(--banker); }
+    .soma-input { width: 100%; max-width: 80px; height: 50px; background: var(--bg); border: 2px solid var(--border); border-radius: 8px; color: #fff; text-align: center; font-size: 24px; font-weight: 900; outline: none; }
+    .btn-add { width: 100%; padding: 16px; background: linear-gradient(90deg, var(--purple), #3b82f6); border: none; border-radius: 12px; color: #fff; font-size: 16px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
+
+    /* PADRÕES DO SITE ORIGINAL */
+    .section-title { font-size: 14px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .patterns-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .pattern-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+    .pattern-title { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+    .pattern-signal { font-size: 18px; font-weight: 900; display: flex; align-items: center; gap: 8px; }
+    .pattern-desc { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.3; }
+    .signal-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .signal-dot.p { background: var(--player); box-shadow: 0 0 10px var(--player); }
+    .signal-dot.b { background: var(--banker); box-shadow: 0 0 10px var(--banker); }
+    .signal-dot.n { background: var(--muted); }
+
+    /* CONSENSO E SINAL PRINCIPAL */
+    .main-signal-card { background: var(--card); border: 2px solid var(--border); border-radius: 20px; padding: 24px; text-align: center; }
+    .main-signal-card.active { border-color: var(--green); box-shadow: 0 0 20px rgba(34,197,94,0.2); }
+    .main-signal-text { font-size: 32px; font-weight: 900; margin: 10px 0; }
+    .main-signal-text.wait { color: var(--tie); }
+    .main-signal-text.player { color: var(--player); }
+    .main-signal-text.banker { color: var(--banker); }
+
+    /* HISTÓRICO */
+    .history-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+    .hist-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .hist-item { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; }
+    .hist-item.player { background: rgba(59,130,246,0.1); color: var(--player); border: 1px solid var(--player); }
+    .hist-item.banker { background: rgba(239,68,68,0.1); color: var(--banker); border: 1px solid var(--banker); }
+    .hist-item.tie { background: rgba(245,158,11,0.1); color: var(--tie); border: 1px solid var(--tie); }
+
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <span class="logo-icon">🎯</span>
+      <div>
+        <div class="logo-text">Km Dados</div>
+        <div class="logo-sub">Painel Sniper Profissional</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    
+    /* PLACAR DE ASSERTIVIDADE */
+    <div class="patterns-grid">
+      <div class="pattern-card" style="text-align: center; border-color: var(--green);">
+        <div class="pattern-title" style="color: var(--green);">✅ GREENS</div>
+        <div id="green-count" style="font-size: 24px; font-weight: 900; color: #fff;">0</div>
+      </div>
+      <div class="pattern-card" style="text-align: center; border-color: var(--banker);">
+        <div class="pattern-title" style="color: var(--banker);">❌ REDS</div>
+        <div id="red-count" style="font-size: 24px; font-weight: 900; color: #fff;">0</div>
+      </div>
+    </div>
+
+    <!-- ENTRADA MANUAL -->
+    <div class="input-card">
+      <div class="dice-container">
+        <div class="dice-row">
+          <div class="dice-label p">Azul</div>
+          <input type="number" id="somaP" class="soma-input" placeholder="0">
+        </div>
+        <div class="dice-row">
+          <div class="dice-label b">Vermelho</div>
+          <input type="number" id="somaB" class="soma-input" placeholder="0">
+        </div>
+      </div>
+      <button class="btn-add" onclick="registrar()">Registrar Rodada</button>
+      <button onclick="limparTudo()" style="width: 100%; margin-top: 10px; background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 8px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase;">Limpar Histórico</button>
+    </div>
+
+    <!-- HISTÓRICO ACIMA DO CONSENSO -->
+    <div class="history-card">
+      <div class="section-title">🕒 Últimas Rodadas</div>
+      <div class="hist-list" id="histList"></div>
+    </div>
+
+    <!-- SINAL PRINCIPAL (CONSENSO) -->
+    <div class="main-signal-card" id="mainCard">
+      <div class="section-title">📊 Consenso Sniper</div>
+      <div class="main-signal-text wait" id="mainText">AGUARDANDO...</div>
+      <div class="pattern-desc" id="mainDesc">Insira resultados para iniciar a análise de padrões.</div>
+    </div>
+
+    <!-- OS 4 PADRÕES DO SITE ORIGINAL -->
+    <div class="section-title">🧠 Padrões Oficiais Bac Bo</div>
+    <div class="patterns-grid">
+      <div class="pattern-card">
+        <div class="pattern-title">Big Road</div>
+        <div id="br-sig" class="pattern-signal"><span class="signal-dot n"></span> —</div>
+        <div class="pattern-desc">Segue o fluxo vencedor atual</div>
+      </div>
+      <div class="pattern-card">
+        <div class="pattern-title">Big Eye Boy</div>
+        <div id="be-sig" class="pattern-signal"><span class="signal-dot n"></span> —</div>
+        <div class="pattern-desc">Analisa dominância recente (3 rodadas)</div>
+      </div>
+      <div class="pattern-card">
+        <div class="pattern-title">Small Road</div>
+        <div id="sr-sig" class="pattern-signal"><span class="signal-dot n"></span> —</div>
+        <div class="pattern-desc">Padrão de repetição direta</div>
+      </div>
+      <div class="pattern-card">
+        <div class="pattern-title">Cockroach Pig</div>
+        <div id="cp-sig" class="pattern-signal"><span class="signal-dot n"></span> —</div>
+        <div class="pattern-desc">Média das últimas 5 rodadas</div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+let hist = JSON.parse(localStorage.getItem('km_hist')) || [];
+let somas = JSON.parse(localStorage.getItem('km_somas')) || [];
+let greens = parseInt(localStorage.getItem('km_greens')) || 0;
+let reds = parseInt(localStorage.getItem('km_reds')) || 0;
+let ultimoSinal = null; // Armazena o último sinal emitido
+
+function registrar() {
+    const inputP = document.getElementById('somaP');
+    const inputB = document.getElementById('somaB');
+    const p = parseInt(inputP.value);
+    const b = parseInt(inputB.value);
+    
+    if (isNaN(p) || isNaN(b)) {
+        alert("Digite as somas de Azul e Vermelho!");
+        return;
+    }
+
+    let res = p > b ? 'player' : (b > p ? 'banker' : 'tie');
+
+    // Lógica de Green/Red baseada no último sinal
+    if (ultimoSinal) {
+        if (res === 'tie' || res === ultimoSinal) {
+            greens++;
+            localStorage.setItem('km_greens', greens);
+        } else {
+            reds++;
+            localStorage.setItem('km_reds', reds);
+        }
+        ultimoSinal = null; // Reseta após validar
+    }
+
+    hist.unshift(res);
+    somas.unshift({p, b});
+    if(hist.length > 40) { hist.pop(); somas.pop(); }
+
+    localStorage.setItem('km_hist', JSON.stringify(hist));
+    localStorage.setItem('km_somas', JSON.stringify(somas));
+    
+    inputP.value = '';
+    inputB.value = '';
+    atualizar();
+}
+
+function limparTudo() {
+    if(confirm("Deseja zerar todo o histórico e placar?")) {
+        hist = [];
+        somas = [];
+        greens = 0;
+        reds = 0;
+        ultimoSinal = null;
+        localStorage.removeItem('km_hist');
+        localStorage.removeItem('km_somas');
+        localStorage.removeItem('km_greens');
+        localStorage.removeItem('km_reds');
+        atualizar();
+    }
+}
+
+function atualizar() {
+    // Atualiza Placar
+    document.getElementById('green-count').innerText = greens;
+    document.getElementById('red-count').innerText = reds;
+
+    // Histórico
+    document.getElementById('histList').innerHTML = hist.map(x => `<div class="hist-item ${x}">${x[0].toUpperCase()}</div>`).join('');
+
+    // Resetar padrões visuais se não houver dados suficientes
+    if (hist.length < 5) {
+        ['br-sig', 'be-sig', 'sr-sig', 'cp-sig'].forEach(id => {
+            document.getElementById(id).innerHTML = `<span class="signal-dot n"></span> —`;
+        });
+        document.getElementById('mainText').innerText = "ANALISANDO...";
+        document.getElementById('mainText').className = "main-signal-text wait";
+        document.getElementById('mainCard').classList.remove('active');
+        document.getElementById('mainDesc').innerText = "Insira pelo menos 5 rodadas para iniciar a análise.";
+        return;
+    }
+
+    // Lógica dos Padrões
+    let votosP = 0, votosB = 0;
+
+    // 1. Big Road
+    const br = hist[0];
+    updateCard('br-sig', br);
+    if(br === 'player') votosP++; else if(br === 'banker') votosB++;
+
+    // 2. Big Eye
+    const p3 = hist.slice(0,3).filter(x => x === 'player').length;
+    const b3 = hist.slice(0,3).filter(x => x === 'banker').length;
+    const be = p3 > b3 ? 'player' : 'banker';
+    updateCard('be-sig', be);
+    if(be === 'player') votosP++; else if(be === 'banker') votosB++;
+
+    // 3. Small Road
+    const sr = hist[0];
+    updateCard('sr-sig', sr);
+    if(sr === 'player') votosP++; else if(sr === 'banker') votosB++;
+
+    // 4. Cockroach
+    const p5 = hist.slice(0,5).filter(x => x === 'player').length;
+    const b5 = hist.slice(0,5).filter(x => x === 'banker').length;
+    const cp = p5 > b5 ? 'player' : 'banker';
+    updateCard('cp-sig', cp);
+    if(cp === 'player') votosP++; else if(cp === 'banker') votosB++;
+
+    // Consenso Final
+    const mainText = document.getElementById('mainText');
+    const mainCard = document.getElementById('mainCard');
+    const mainDesc = document.getElementById('mainDesc');
+
+    let surf = 0;
+    const last = hist[0];
+    for(let i=0; i<hist.length; i++) { if(hist[i] === last) surf++; else break; }
+
+    if(surf >= 4) {
+        mainText.innerText = "SURF: AGUARDAR";
+        mainText.className = "main-signal-text wait";
+        mainCard.classList.remove('active');
+        mainDesc.innerText = "Sequência longa detectada. Aguarde a quebra do surfe.";
+    } else if(votosP >= 3) {
+        mainText.innerText = "ENTRAR JOGADOR";
+        mainText.className = "main-signal-text player";
+        mainCard.classList.add('active');
+        mainDesc.innerText = "Consenso Sniper: Padrões apontam forte para AZUL.";
+        ultimoSinal = 'player';
+    } else if(votosB >= 3) {
+        mainText.innerText = "ENTRAR BANCO";
+        mainText.className = "main-signal-text banker";
+        mainCard.classList.add('active');
+        mainDesc.innerText = "Consenso Sniper: Padrões apontam forte para VERMELHO.";
+        ultimoSinal = 'banker';
+    } else {
+        mainText.innerText = "ANALISANDO...";
+        mainText.className = "main-signal-text wait";
+        mainCard.classList.remove('active');
+        mainDesc.innerText = "Aguardando confirmação de padrões de elite.";
+        ultimoSinal = null;
+    }
+}
+
+function updateCard(id, side) {
+    const el = document.getElementById(id);
+    const color = side === 'player' ? 'p' : (side === 'banker' ? 'b' : 'n');
+    const label = side === 'player' ? 'AZUL' : (side === 'banker' ? 'VERM' : '—');
+    el.innerHTML = `<span class="signal-dot ${color}"></span> ${label}`;
+}
+
+atualizar();
+</script>
+</body>
+</html>
